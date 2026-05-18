@@ -1,22 +1,23 @@
-"""Streamlit Community Cloud 財報分析（MOPS + Yahoo 備援）."""
+"""Streamlit Community Cloud 財報分析（對齊本機 8501 主要區塊）."""
 
 from __future__ import annotations
 
 from datetime import date
 
 import pandas as pd
-import plotly.express as px
 import streamlit as st
 
-from config import YEARS
+from classification import get_stock_meta, is_core_asic_ip_stock
+from cloud_sections import render_financial_charts, render_metrics_table_raw, render_risk_section
+from config import STOCK_NAMES, YEARS
 from data_fetch import fetch_stock_data_auto
 from display_format import (
-    METRIC_LABELS,
     inject_layout_css,
     metrics_for_display,
     render_source_banner,
     source_banner,
 )
+from market_depth_analysis import depth_analysis_available, render_depth_section, resolve_stock_name
 
 st.set_page_config(
     page_title="台股財報分析",
@@ -29,12 +30,6 @@ inject_layout_css()
 
 _REPORT_CAP = min(max(YEARS), date.today().year - 1)
 
-# 圖表用（數值、元；金額以億元顯示於軸標題）
-CHART_MONEY_YI = {
-    "FCF": "自由現金流（億元）",
-    "OperatingCashflow": "營業現金流（億元）",
-}
-
 
 @st.cache_data(ttl=3600, show_spinner=False)
 def fetch_stock_data(symbol: str, years: tuple[int, ...]) -> dict:
@@ -45,20 +40,18 @@ def fetch_stock_data(symbol: str, years: tuple[int, ...]) -> dict:
     return fetch_stock_data_auto(code, year_list)
 
 
-def _metrics_to_chart_df(metrics: pd.DataFrame) -> pd.DataFrame:
-    """指標表（元）→ 圖表用（億元）。"""
-    chart = metrics.copy()
-    chart.index.name = "Year"
-    chart = chart.reset_index()
-    for col, label in CHART_MONEY_YI.items():
-        if col in chart.columns:
-            chart[label] = chart[col] / 1e8
-    chart = chart.rename(columns={k: v for k, v in METRIC_LABELS.items() if k not in CHART_MONEY_YI})
-    return chart
+def _is_core_stock(code: str, name: str = "", role: str = "") -> bool:
+    try:
+        return bool(is_core_asic_ip_stock(code, name, role))
+    except Exception:
+        return False
 
 
 st.title("台股財報分析")
-st.caption("Cloud 精簡版 · 金額統一顯示為新台幣億元 · 完整 MOPS 版請用本機 `start_hub`（8501）")
+st.caption(
+    "Cloud 版：財報 · 圖表解說 · 風險提醒 · 技術籌碼 · "
+    "完整 MOPS 與進階功能請用本機 `start_hub`（8501）"
+)
 
 with st.sidebar:
     st.subheader("年度範圍")
@@ -72,13 +65,27 @@ with st.sidebar:
         value=(default_start, default_end),
     )
     selected_years = tuple(y for y in YEARS if year_start <= y <= year_end and y <= _REPORT_CAP)
-    st.caption(f"建議查詢至 {_REPORT_CAP} 年（正式年報年度）")
+
+    st.divider()
+    show_chart_help = st.checkbox(
+        "顯示圖表解說（初學者模式）",
+        value=True,
+        help="圖表右側顯示白話說明，與本機 8501 相同。",
+    )
+    load_depth = st.checkbox(
+        "載入技術面／籌碼面",
+        value=True,
+        disabled=not depth_analysis_available(),
+    )
+    if not depth_analysis_available():
+        st.caption("技術籌碼模組未就緒（缺 `modules/stock_report_generator.py`）。")
+
     st.divider()
     st.markdown(
-        "**與本機差異說明**\n"
-        "- 本機 **8501**：MOPS 完整儀表板\n"
-        "- 本頁 **Cloud**：海外主機常只能 Yahoo 備援\n"
-        "- **百分比**兩邊可對照；**金額**以本頁「億元」欄為準"
+        "**與本機 8501 差異**\n"
+        "- 財報：Cloud 常走 Yahoo 備援\n"
+        "- 技術籌碼：TWSE API 在海外可能失敗\n"
+        "- 無「全清單篩選」與 HTML 匯出"
     )
 
 symbol = st.text_input("股票代號", value="2330", max_chars=6).strip().upper()
@@ -86,9 +93,15 @@ symbol = st.text_input("股票代號", value="2330", max_chars=6).strip().upper(
 if not symbol:
     st.warning("請輸入股票代號。")
 else:
+    try:
+        meta = get_stock_meta(symbol)
+    except Exception:
+        meta = {}
+    stock_name = str(meta.get("name") or STOCK_NAMES.get(symbol, "") or resolve_stock_name(symbol))
+    is_core = _is_core_stock(symbol, stock_name, str(meta.get("role", "")))
+
     with st.spinner(f"正在取得 {symbol}（{year_start}–{year_end}）…"):
         result = fetch_stock_data(symbol, selected_years)
-        result["symbol"] = symbol
 
     if not result.get("ok"):
         st.error(result.get("error", "無法取得資料"))
@@ -98,66 +111,33 @@ else:
         source_kind = result.get("source_kind", "yahoo")
         banner_text, banner_level = source_banner(source_kind)
         render_source_banner(banner_text, banner_level)
-
-        st.caption(result.get("source_label", ""))
         for note in result.get("notes") or []:
-            if "MOPS 無法使用" in note or "無回應" in note:
-                render_source_banner(note, "info")
+            if "MOPS" in str(note):
+                render_source_banner(str(note), "info")
 
         metrics_raw: pd.DataFrame = result["metrics"]
         table_df = metrics_for_display(metrics_raw)
-        chart_df = _metrics_to_chart_df(metrics_raw)
 
-        tab_table, tab_chart = st.tabs(["指標表", "趨勢圖"])
+        st.header("一、財報分析")
+        st.caption(f"{stock_name}（`{symbol}`）· {result.get('source_label', '')}")
 
-        with tab_table:
-            st.caption("比率為 % 或倍；金額欄為新台幣億元（小數點後兩位）。")
+        tab_summary, tab_charts, tab_risk, tab_raw = st.tabs(
+            ["指標表（億元）", "指標圖表", "風險提醒", "原始數值"]
+        )
+
+        with tab_summary:
             st.dataframe(table_df, width="stretch", hide_index=True)
 
-        with tab_chart:
-            if chart_df.empty:
-                st.info("無可繪圖資料。")
-            else:
-                col1, col2 = st.columns(2)
-                with col1:
-                    if "EPS 年成長率 (%)" in chart_df.columns:
-                        st.plotly_chart(
-                            px.line(
-                                chart_df,
-                                x="Year",
-                                y="EPS 年成長率 (%)",
-                                markers=True,
-                                title="EPS 年成長率",
-                            ),
-                            width="stretch",
-                        )
-                    if "毛利率 (%)" in chart_df.columns:
-                        st.plotly_chart(
-                            px.line(
-                                chart_df,
-                                x="Year",
-                                y=["毛利率 (%)", "營業利益率 (%)"],
-                                markers=True,
-                                title="毛利率 / 營業利益率",
-                            ),
-                            width="stretch",
-                        )
-                with col2:
-                    if "ROE (%)" in chart_df.columns:
-                        st.plotly_chart(
-                            px.bar(chart_df, x="Year", y="ROE (%)", title="ROE"),
-                            width="stretch",
-                        )
-                    fcf_col = CHART_MONEY_YI["FCF"]
-                    if fcf_col in chart_df.columns:
-                        st.plotly_chart(
-                            px.bar(chart_df, x="Year", y=fcf_col, title=fcf_col),
-                            width="stretch",
-                        )
+        with tab_charts:
+            render_financial_charts(metrics_raw, show_help=show_chart_help)
 
-        with st.expander("原始數值（元 · 除錯用）"):
-            st.dataframe(
-                metrics_raw.reset_index(),
-                width="stretch",
-                hide_index=True,
-            )
+        with tab_risk:
+            render_risk_section(metrics_raw, is_core=is_core, show_help=show_chart_help)
+
+        with tab_raw:
+            render_metrics_table_raw(metrics_raw)
+
+        if load_depth:
+            st.divider()
+            st.header("二、技術面與籌碼面")
+            render_depth_section(symbol, stock_name=stock_name, show_help=show_chart_help)

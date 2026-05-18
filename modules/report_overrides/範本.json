@@ -1,0 +1,73 @@
+{
+  "_說明": "複製為 <股票代號>.json（例：6770.json），只填你要出現在報告上的欄位。未填的區塊不會輸出。",
+  "header": {
+    "subtitle": "副標題（一句話題材／財報重點，純文字會自動 escape）",
+    "theme_tagline": "標題下方的金色標語條文字",
+    "trophy_label": "獎盃圖示下方標籤，例如「轉型強勢股」"
+  },
+  "conclusions": [
+    { "type": "tick", "text": "正面結論項目（可多則），type=tick 顯示綠 ✓" },
+    { "type": "warn", "text": "風險／提醒，type=warn 顯示 ⚠" }
+  ],
+  "holdings": {
+    "foreign_ratio": "8.52%（減少中）若含 HTML，設 foreign_raw: true",
+    "trust_ratio": "2.31%（增加中）",
+    "foreign_raw": false,
+    "trust_raw": false,
+    "note": "下方補充說明純文字；若要貼 HTML 設 note_raw: true 並將內容放 note_html",
+    "note_raw": false
+  },
+  "peers": [
+    {
+      "code": "6770",
+      "name": "本公司簡稱",
+      "biz": "產業別一句話",
+      "burst": 4,
+      "safe": 3,
+      "fund": 3,
+      "strategy": "操作策略一句話",
+      "highlight": true
+    },
+    {
+      "code": "2303",
+      "name": "同業對照",
+      "biz": "",
+      "burst": 3,
+      "safe": 4,
+      "fund": 4,
+      "strategy": "中線布局",
+      "highlight": false
+    }
+  ],
+  "ranking": {
+    "title": "投信近10日買超排行（手填）",
+    "headers": ["排名", "股票", "買超(張)", "累計(張)", "估計金額(億)"],
+    "rows": [
+      ["1", "標的甲(2330)", "1000", "5000", "100.00"],
+      ["2", "標的乙(6770)", "906", "2537", "1.58"]
+    ]
+  },
+  "targets": {
+    "cons": "下限 ～ 上限",
+    "mid": "",
+    "bull": ""
+  },
+  "observations": ["觀察重點 1", "觀察重點 2"],
+  "chips_10d_summary": {
+    "foreign": "-33,380張",
+    "foreign_note": "持續減碼",
+    "trust": "+2,537張",
+    "trust_note": "持續布局",
+    "dealer": "+890張",
+    "dealer_note": "",
+    "hint": "可自行寫總評一句",
+    "raw_values": false
+  },
+  "summary_risk": {
+    "summary": "總結段落（純文字）。若要貼網頁級 HTML，改設 summary_raw: true 並寫進 summary_html 鍵（風險自負）。",
+    "summary_raw": false,
+    "risks": ["風險一", "風險二"]
+  },
+  "footer_bar": "★ 可自訂底部橫幅文字 ★",
+  "footer_source_note": "可自行加一句資料說明，會附加在來源行之後。"
+}
