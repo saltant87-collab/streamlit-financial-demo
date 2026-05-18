@@ -10,6 +10,7 @@ import streamlit as st
 
 from config import YEARS
 from data_fetch import fetch_stock_data_auto
+from display_format import METRIC_LABELS, metrics_for_display, source_banner
 
 st.set_page_config(
     page_title="台股財報分析",
@@ -18,21 +19,13 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-METRIC_LABELS: dict[str, str] = {
-    "EPS_Growth_Rate": "EPS 年成長率 (%)",
-    "Gross_Margin": "毛利率 (%)",
-    "Operating_Margin": "營業利益率 (%)",
-    "ROE": "ROE (%)",
-    "FCF": "自由現金流",
-    "Debt_Ratio": "負債比 (%)",
-    "Current_Ratio": "流動比",
-    "Quick_Ratio": "速動比",
-    "RND_Ratio": "研發費用率 (%)",
-    "OperatingCashflow": "營業現金流",
-}
-
-# 年度報告通常落後約 1 年；預設不選「可能尚無年報」的最近年
 _REPORT_CAP = min(max(YEARS), date.today().year - 1)
+
+# 圖表用（數值、元；金額以億元顯示於軸標題）
+CHART_MONEY_YI = {
+    "FCF": "自由現金流（億元）",
+    "OperatingCashflow": "營業現金流（億元）",
+}
 
 
 @st.cache_data(ttl=3600, show_spinner=False)
@@ -44,27 +37,20 @@ def fetch_stock_data(symbol: str, years: tuple[int, ...]) -> dict:
     return fetch_stock_data_auto(code, year_list)
 
 
-def _package_result(raw: dict) -> dict:
-    if not raw.get("ok"):
-        return raw
-    metrics = raw["metrics"].copy()
-    metrics.index.name = "Year"
-    display = metrics.rename(columns=METRIC_LABELS)
-    out = {
-        "ok": True,
-        "symbol": raw.get("symbol", ""),
-        "source": raw["source"],
-        "metrics": display.reset_index().to_dict(orient="records"),
-        "notes": raw.get("notes") or [],
-    }
-    return out
+def _metrics_to_chart_df(metrics: pd.DataFrame) -> pd.DataFrame:
+    """指標表（元）→ 圖表用（億元）。"""
+    chart = metrics.copy()
+    chart.index.name = "Year"
+    chart = chart.reset_index()
+    for col, label in CHART_MONEY_YI.items():
+        if col in chart.columns:
+            chart[label] = chart[col] / 1e8
+    chart = chart.rename(columns={k: v for k, v in METRIC_LABELS.items() if k not in CHART_MONEY_YI})
+    return chart
 
 
 st.title("台股財報分析")
-st.caption(
-    "優先 MOPS · 雲端連線失敗時改 Yahoo Finance · "
-    "本機完整版請用 `start_hub`（8501）"
-)
+st.caption("Cloud 精簡版 · 金額統一顯示為新台幣億元 · 完整 MOPS 版請用本機 `start_hub`（8501）")
 
 with st.sidebar:
     st.subheader("年度範圍")
@@ -78,7 +64,14 @@ with st.sidebar:
         value=(default_start, default_end),
     )
     selected_years = tuple(y for y in YEARS if year_start <= y <= year_end and y <= _REPORT_CAP)
-    st.caption(f"建議查詢至 {_REPORT_CAP} 年（年報通常尚未含更新年度）")
+    st.caption(f"建議查詢至 {_REPORT_CAP} 年（正式年報年度）")
+    st.divider()
+    st.markdown(
+        "**與本機差異說明**\n"
+        "- 本機 **8501**：MOPS 完整儀表板\n"
+        "- 本頁 **Cloud**：海外主機常只能 Yahoo 備援\n"
+        "- **百分比**兩邊可對照；**金額**以本頁「億元」欄為準"
+    )
 
 symbol = st.text_input("股票代號", value="2330", max_chars=6).strip().upper()
 
@@ -86,36 +79,46 @@ if not symbol:
     st.warning("請輸入股票代號。")
 else:
     with st.spinner(f"正在取得 {symbol}（{year_start}–{year_end}）…"):
-        raw = fetch_stock_data(symbol, selected_years)
-        raw["symbol"] = symbol
-        result = _package_result(raw)
+        result = fetch_stock_data(symbol, selected_years)
+        result["symbol"] = symbol
 
     if not result.get("ok"):
         st.error(result.get("error", "無法取得資料"))
         for note in result.get("notes") or []:
             st.caption(note)
     else:
-        st.success(f"已載入 {symbol} · {result['source']}")
+        source_kind = result.get("source_kind", "yahoo")
+        banner_text, banner_level = source_banner(source_kind)
+        if banner_level == "success":
+            st.success(banner_text)
+        else:
+            st.warning(banner_text)
+
+        st.caption(result.get("source_label", ""))
         for note in result.get("notes") or []:
-            st.info(note)
-        metrics_df = pd.DataFrame(result["metrics"])
+            if "MOPS 無法使用" in note or "無回應" in note:
+                st.info(note)
+
+        metrics_raw: pd.DataFrame = result["metrics"]
+        table_df = metrics_for_display(metrics_raw)
+        chart_df = _metrics_to_chart_df(metrics_raw)
 
         tab_table, tab_chart = st.tabs(["指標表", "趨勢圖"])
 
         with tab_table:
-            st.dataframe(metrics_df, width="stretch", hide_index=True)
+            st.caption("比率為 % 或倍；金額欄為新台幣億元（小數點後兩位）。")
+            st.dataframe(table_df, width="stretch", hide_index=True)
 
         with tab_chart:
-            if metrics_df.empty:
+            if chart_df.empty:
                 st.info("無可繪圖資料。")
             else:
-                chart_df = metrics_df.set_index("Year")
                 col1, col2 = st.columns(2)
                 with col1:
                     if "EPS 年成長率 (%)" in chart_df.columns:
                         st.plotly_chart(
                             px.line(
-                                chart_df.reset_index(),
+                                chart_df,
                                 x="Year",
                                 y="EPS 年成長率 (%)",
                                 markers=True,
@@ -126,7 +129,7 @@ else:
                     if "毛利率 (%)" in chart_df.columns:
                         st.plotly_chart(
                             px.line(
-                                chart_df.reset_index(),
+                                chart_df,
                                 x="Year",
                                 y=["毛利率 (%)", "營業利益率 (%)"],
                                 markers=True,
@@ -137,19 +140,19 @@ else:
                 with col2:
                     if "ROE (%)" in chart_df.columns:
                         st.plotly_chart(
-                            px.bar(chart_df.reset_index(), x="Year", y="ROE (%)", title="ROE"),
+                            px.bar(chart_df, x="Year", y="ROE (%)", title="ROE"),
                             width="stretch",
                         )
-                    if "自由現金流" in chart_df.columns:
+                    fcf_col = CHART_MONEY_YI["FCF"]
+                    if fcf_col in chart_df.columns:
                         st.plotly_chart(
-                            px.bar(
-                                chart_df.reset_index(),
-                                x="Year",
-                                y="自由現金流",
-                                title="自由現金流",
-                            ),
+                            px.bar(chart_df, x="Year", y=fcf_col, title=fcf_col),
                             width="stretch",
                         )
 
-        with st.expander("原始 JSON（除錯用）"):
-            st.json(result)
+        with st.expander("原始數值（元 · 除錯用）"):
+            st.dataframe(
+                metrics_raw.reset_index(),
+                width="stretch",
+                hide_index=True,
+            )

@@ -10,6 +10,7 @@ from financial_scraping import (
     fetch_income_statement,
 )
 from indicator_calculation import compute_full_metrics
+from display_format import normalize_money_to_ntd
 from yfinance_fallback import fetch_metrics_yfinance
 
 
@@ -40,7 +41,8 @@ def fetch_stock_data_mops(code: str, year_list: list[int]) -> tuple[pd.DataFrame
     metrics = _usable_metrics(compute_full_metrics(income, balance, cashflow))
     if metrics.empty:
         return pd.DataFrame(), "MOPS 有回應但無法解析指標"
-    return metrics, "MOPS（mopsov.twse.com.tw）年度財報"
+    metrics = normalize_money_to_ntd(metrics, "mops")
+    return metrics, "mops"
 
 
 def fetch_stock_data_auto(code: str, year_list: list[int]) -> dict:
@@ -49,7 +51,13 @@ def fetch_stock_data_auto(code: str, year_list: list[int]) -> dict:
     try:
         metrics, source = fetch_stock_data_mops(code, year_list)
         if not metrics.empty:
-            return {"ok": True, "metrics": metrics, "source": source, "notes": notes}
+            return {
+                "ok": True,
+                "metrics": metrics,
+                "source_kind": "mops",
+                "source_label": "MOPS（公開資訊觀測站 · 與本機 8501 同口徑）",
+                "notes": notes,
+            }
         notes.append(source)
     except Exception as exc:
         notes.append(f"MOPS 例外：{exc}")
@@ -57,11 +65,13 @@ def fetch_stock_data_auto(code: str, year_list: list[int]) -> dict:
     try:
         yf_metrics = _usable_metrics(fetch_metrics_yfinance(code, year_list))
         if not yf_metrics.empty:
+            yf_metrics = normalize_money_to_ntd(yf_metrics, "yahoo")
             notes.append("MOPS 無法使用時已改以 Yahoo Finance 備援。")
             return {
                 "ok": True,
                 "metrics": yf_metrics,
-                "source": "Yahoo Finance（yfinance · 2330.TW 等）",
+                "source_kind": "yahoo",
+                "source_label": "Yahoo Finance（yfinance · 備援，可能與 MOPS 不同）",
                 "notes": notes,
             }
         notes.append("Yahoo Finance 亦無可用年度資料。")
