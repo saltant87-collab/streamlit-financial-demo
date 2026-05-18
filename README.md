@@ -4,6 +4,8 @@
 
 **要上線請讀 → [DEPLOY.md](./DEPLOY.md)**（GitHub + share.streamlit.io 逐步說明）。
 
+已接上 **MOPS 真實財報**（與主專案相同抓取／指標邏輯，程式在本子資料夾內獨立複本，不影響 `tw_financial_dashboard`）。
+
 ## 本機啟動
 
 ```bash
