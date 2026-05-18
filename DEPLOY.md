@@ -30,7 +30,7 @@
 cd "/Users/laipeiyu/Library/Mobile Documents/com~apple~CloudDocs/股票投資專區/streamlit_cloud_financial_demo"
 
 git init
-git add app.py requirements.txt .streamlit .gitignore .github README.md DEPLOY.md packages.txt
+git add app.py requirements.txt .python-version .streamlit .gitignore .github README.md DEPLOY.md
 git commit -m "Initial Streamlit Community Cloud demo"
 
 git branch -M main
@@ -102,6 +102,7 @@ Pages 仍管靜態站；財報範例在 `streamlit.app`：
 | 現象 | 處理 |
 |------|------|
 | `ModuleNotFoundError` | 確認 `requirements.txt` 在 **repo 根目錄**（獨立 repo 時即本資料夾根） |
+| **Error installing requirements** | 勿在 `packages.txt` 寫 `python-3.11`（那是 apt 套件名）；Python 版請用 **`.python-version`**（內容 `3.11`） |
 | 部署成功但白畫面 | 看 Cloud Logs；確認 `app.py` 路徑正確 |
 | 私人 repo 無法部署 | 需授權 Streamlit 存取 private repo，或改 Public |
 | wake workflow 沒跑 | 確認 workflow 在 **repo 根** `.github/workflows/`，且 URL 已改掉 TODO |
