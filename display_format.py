@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+import re
+
 import pandas as pd
+import streamlit as st
 
 from indicator_calculation import REQUIRED_METRIC_COLUMNS
 
@@ -123,3 +126,50 @@ def source_banner(source_kind: str) -> tuple[str, str]:
 def chart_column_map() -> dict[str, str]:
     """圖表用欄位（數值、未格式化）。"""
     return {METRIC_LABELS[k]: k for k in METRIC_LABELS}
+
+
+def _md_bold_to_html(text: str) -> str:
+    return re.sub(r"\*\*(.+?)\*\*", r"<strong>\1</strong>", text)
+
+
+def render_source_banner(text: str, level: str) -> None:
+    """左對齊、貼齊主內容區左緣的來源說明（取代置中的 st.warning）。"""
+    styles = {
+        "warning": ("#fffbeb", "#78350f", "#f59e0b"),
+        "success": ("#ecfdf5", "#065f46", "#10b981"),
+        "info": ("#eff6ff", "#1e3a8a", "#3b82f6"),
+    }
+    bg, color, border = styles.get(level, styles["info"])
+    html = _md_bold_to_html(text)
+    st.markdown(
+        f'<div class="fin-source-banner" style="background:{bg};color:{color};'
+        f"border-left:4px solid {border};padding:12px 16px;margin:0 0 12px 0;"
+        f"border-radius:6px;text-align:left;width:100%;max-width:100%;"
+        f'box-sizing:border-box;font-size:0.95rem;line-height:1.6;">{html}</div>',
+        unsafe_allow_html=True,
+    )
+
+
+def inject_layout_css() -> None:
+    """主區提示框靠左、不置中。"""
+    st.markdown(
+        """
+<style>
+  div[data-testid="stAlert"] {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+  }
+  div[data-testid="stAlert"] > div {
+    justify-content: flex-start !important;
+    text-align: left !important;
+  }
+  .fin-source-banner {
+    display: block;
+    text-align: left !important;
+  }
+</style>
+        """,
+        unsafe_allow_html=True,
+    )

@@ -10,7 +10,13 @@ import streamlit as st
 
 from config import YEARS
 from data_fetch import fetch_stock_data_auto
-from display_format import METRIC_LABELS, metrics_for_display, source_banner
+from display_format import (
+    METRIC_LABELS,
+    inject_layout_css,
+    metrics_for_display,
+    render_source_banner,
+    source_banner,
+)
 
 st.set_page_config(
     page_title="台股財報分析",
@@ -18,6 +24,8 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded",
 )
+
+inject_layout_css()
 
 _REPORT_CAP = min(max(YEARS), date.today().year - 1)
 
@@ -89,15 +97,12 @@ else:
     else:
         source_kind = result.get("source_kind", "yahoo")
         banner_text, banner_level = source_banner(source_kind)
-        if banner_level == "success":
-            st.success(banner_text)
-        else:
-            st.warning(banner_text)
+        render_source_banner(banner_text, banner_level)
 
         st.caption(result.get("source_label", ""))
         for note in result.get("notes") or []:
             if "MOPS 無法使用" in note or "無回應" in note:
-                st.info(note)
+                render_source_banner(note, "info")
 
         metrics_raw: pd.DataFrame = result["metrics"]
         table_df = metrics_for_display(metrics_raw)
