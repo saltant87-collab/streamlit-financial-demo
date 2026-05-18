@@ -1,0 +1,23 @@
+# 定期喚醒 Streamlit Community Cloud app（部署後請替換 TODO URL）
+name: Wake Streamlit demo
+
+on:
+  schedule:
+    # 每 4 小時一次（UTC）
+    - cron: "0 */4 * * *"
+  workflow_dispatch:
+
+jobs:
+  wake:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Streamlit app
+        run: |
+          # TODO: 部署完成後，將下方換成你的 app 網址，例如：
+          # STREAMLIT_APP_URL="https://your-app-name.streamlit.app"
+          STREAMLIT_APP_URL="TODO_REPLACE_WITH_YOUR_STREAMLIT_APP_URL"
+          if [ "$STREAMLIT_APP_URL" = "TODO_REPLACE_WITH_YOUR_STREAMLIT_APP_URL" ]; then
+            echo "Skip: STREAMLIT_APP_URL is still TODO"
+            exit 0
+          fi
+          curl -fsS -o /dev/null -w "%{http_code}\n" "$STREAMLIT_APP_URL" || true

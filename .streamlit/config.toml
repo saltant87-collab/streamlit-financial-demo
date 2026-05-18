@@ -1,0 +1,8 @@
+[server]
+headless = true
+# 與 enableXsrfProtection 同時為 true 才相容（false 時 Streamlit 會強制改寫並可能影響連線）
+enableCORS = true
+enableXsrfProtection = true
+
+[theme]
+base = "light"
