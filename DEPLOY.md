@@ -7,7 +7,7 @@
 
 ## 部署前確認（你已完成）
 
-- [x] 本機 `http://127.0.0.1:8502` 能開，畫面出現「範例 API」紅色提示（代表 app 正常）
+- [x] 本機 `http://127.0.0.1:8502` 能開，輸入 2330 可看到財報指標表或資料來源提示
 - [ ] 有 **GitHub** 帳號
 - [ ] 有 **Streamlit Community Cloud** 帳號（用 GitHub 登入）：https://share.streamlit.io
 
@@ -59,14 +59,15 @@ git push -u origin main
 - `git commit` + `git push`  
 - 在 GitHub repo → **Actions** 確認 workflow 有跑（需 repo 為 Public 或 GitHub Pro 才保證免費 Actions 額度）
 
-### 步驟 5：與 Cloudflare Pages 串接（可選）
+### 步驟 5：接到綜合入口（Pages）
 
-Pages 仍管靜態站；財報範例在 `streamlit.app`：
+1. 編輯主專案 `static/hub-cloud-config.js`，將 `HUB_STREAMLIT_CLOUD_URL` 改成你的 app 網址。  
+2. 在專案根目錄執行 `./scripts/deploy-pages.sh --verify`（或雙擊 `deploy-cloudflare.command`）。詳見 `docs/架網部署.md`。  
+3. 線上「綜合入口 → 財報儀表板（Cloud）」與產業地圖「📊 財報分析」會連到 Cloud。
 
-- **最簡單**：在 `綜合入口.html` 加一個連結指向 `https://你的子網域.streamlit.app`
-- **嵌入**：`https://你的子網域.streamlit.app?embed=true` 可放 iframe（需之後改主專案 HTML，勿與本 demo repo 混為一體）
+### 步驟 6：與 Cloudflare Pages 串接說明（可選）
 
-主專案 `tw_financial_dashboard/index.html` 線上仍預設不載 8501；接 Cloud 版要另開需求再改。
+Pages 管靜態站；Streamlit 在 `streamlit.app`。殼頁 `/tw_financial_dashboard/index.html` 線上會內嵌 `?embed=true`。
 
 ---
 
@@ -90,7 +91,7 @@ Pages 仍管靜態站；財報範例在 `streamlit.app`：
 
 | 項目 | 預期 |
 |------|------|
-| 開啟 `https://xxx.streamlit.app` | 與本機 8502 相同畫面（紅色範例 API 提示） |
+| 開啟 `https://xxx.streamlit.app` | 與本機 8502 相同畫面（MOPS 或 Yahoo 備援） |
 | Logs（Cloud 後台） | 無 import error |
 | 改 `app.py` 後 push | 約 1 分鐘內自動重 deploy |
 | 閒置一段時間後再開 | 可能需數秒～十幾秒喚醒（免費方案） |
@@ -109,9 +110,9 @@ Pages 仍管靜態站；財報範例在 `streamlit.app`：
 
 ---
 
-## 下一步（接真實財報，非部署必須）
+## 資料來源
 
-在 `app.py` 的 `fetch_stock_data()` 實作抓取（可參考主專案 `tw_financial_dashboard/financial_scraping.py`，但請**複製邏輯進本 repo**或抽成共用套件，勿在 Cloud 上依賴未上傳的 iCloud 路徑）。
+`app.py` → `fetch_stock_data()` → `data_fetch.fetch_stock_data_auto()`：先 MOPS，失敗則 Yahoo Finance（`yfinance`）。
 
 ---
 

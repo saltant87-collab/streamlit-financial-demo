@@ -88,7 +88,18 @@ with st.sidebar:
         "- 無「全清單篩選」與 HTML 匯出"
     )
 
-symbol = st.text_input("股票代號", value="2330", max_chars=6).strip().upper()
+def _url_code() -> str:
+    try:
+        raw = st.query_params.get("code", "")
+        if isinstance(raw, list):
+            raw = raw[0] if raw else ""
+        return str(raw).strip()[:6]
+    except Exception:
+        return ""
+
+
+_default_code = _url_code() or "2330"
+symbol = st.text_input("股票代號", value=_default_code, max_chars=6).strip().upper()
 
 if not symbol:
     st.warning("請輸入股票代號。")

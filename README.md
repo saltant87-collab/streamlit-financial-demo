@@ -28,7 +28,7 @@ python3 -m streamlit run app.py --server.port 8502
 |------|------|
 | `Port 8502 is already in use` | 關掉舊的 Streamlit 終端（Ctrl+C），或改用 `--server.port 8503` |
 | 瀏覽器空白 | 確認網址是 **8502**；按 Streamlit 右上角 **Rerun** |
-| 紅色「目前是範例 API…」 | **正常**，代表頁面有跑起來，只是尚未接真實資料 |
+| 查無財報 | 先確認代號為上市櫃四碼；雲端若 MOPS 失敗會自動改 Yahoo 備援 |
 | 手機連不上 | Mac 與手機同一 Wi‑Fi；防火牆允許 python3；用終端機印的 Network URL |
 
 ## 依賴
