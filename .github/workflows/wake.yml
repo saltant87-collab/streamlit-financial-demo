@@ -1,0 +1,17 @@
+# 定期喚醒 Streamlit Community Cloud app
+name: Wake Streamlit demo
+
+on:
+  schedule:
+    # 每 4 小時一次（UTC）
+    - cron: "0 */4 * * *"
+  workflow_dispatch:
+
+jobs:
+  wake:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Streamlit app
+        run: |
+          STREAMLIT_APP_URL="https://app-financial-demo-g2mqkn7l4ee8qepcmedzwx.streamlit.app"
+          curl -fsS -o /dev/null -w "%{http_code}\n" "$STREAMLIT_APP_URL" || true
